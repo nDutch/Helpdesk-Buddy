@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SU Helpdesk Companion</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect fill='%2338bdf8' width='32' height='32' rx='4'/><text x='16' y='22' text-anchor='middle' fill='%230a0e14' font-family='monospace' font-weight='bold' font-size='16'>SU</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo } = React;
+
+const KB_ARTICLES = [
+  { id:"account-restricted", title:"Account Restricted", category:"Login / Password", tags:["restricted","login","myaccount","jason"], summary:"Accounts become restricted, usually after a break. myaccount.stevenson.edu shows 'Account Restricted Contact Admin' in red. Won't show in ADCheck.", steps:["User tries to change password on myaccount.stevenson.edu and sees 'Account Restricted Contact Admin' in red","Make a ticket — Jason will unrestrict the account","Keep the Teams chat to just MFA resets or temp passwords, NOT account restrictions"], template:"Your account was unrestricted, and you can now follow the steps in [faq id=163] to change your password. If you have any further issues, let us know.", escalation:"Jason (via ticket)" },
+  { id:"domain-unavailable", title:"Domain Isn't Available", category:"Login / Password", tags:["domain","login","ethernet","laptop","cached","credentials"], summary:"Device can't communicate with Domain Controller. Must be plugged into ethernet. Laptops cache credentials for 60 days.", steps:["Confirm the device is plugged into ethernet","For laptops: first login requires ethernet, credentials cache for 60 days","After 60 days, plug back into ethernet to re-authenticate with the domain controller"], template:null, escalation:null },
+  { id:"password-reset", title:"Password Resets", category:"Login / Password", tags:["password","reset","myaccount","forgot","sync"], summary:"User-driven process through myaccount.stevenson.edu. Fixes many sync issues across systems.", steps:["Go to https://myaccount.stevenson.edu/","Click 'Forgot your password' — enter username and captcha","Code sent to email of choice — proceed with password reset","User prompted to use Microsoft Authenticator (separate from O365 entry — ADSelfService rotating 6-digit code)","Verify the reset worked by asking them to sign into any Stevenson entity"], template:null, escalation:null },
+  { id:"suspicious-activity", title:"Suspicious Activity (O365)", category:"Login / Password", tags:["suspicious","risky","flagged","compromised","azure","entra","mfa","jeremy"], summary:"Azure/AD/M365 flags unusual logins. User locked out of portal.office.com. System admin Jeremy Haas clears risky flags.", steps:["Change ticket type to Technology/OIT → Systems","Copy in all user information","Note that the user has a risky sign-in","Jeremy Haas (system admin) or a global admin clears the risky flag","After flag is removed: user must reset password AND MFA"], template:"We removed the risky flag on your account. You can go to https://myaccount.stevenson.edu/ and click the 'Forgot your password' button to reset your password and when you sign into https://portal.office.com it will make you enroll in MFA again. Reach back out if you have any issues.", escalation:"Technology/OIT → Systems (Jeremy Haas)" },
+  { id:"external-email-change", title:"External Email Change", category:"Login / Password", tags:["external","email","change","identity","id","verification"], summary:"User wants to change external email tied to SU account. Identity verification required.", steps:["Get their new external email address","Get a copy/photo of their student ID to prove identity","If it doesn't match, speak to the helpdesk manager","Once verified, send ID copy and new external email to the helpdesk manager","Attach both to the ticket"], template:null, escalation:"Helpdesk Manager" },
+  { id:"username-lookup", title:"How Can a User Lookup Their Username?", category:"Login / Password", tags:["username","lookup","find","webxpress"], summary:"Direct users to webxpress.stevenson.edu to find their username.", steps:["Go to https://webxpress.stevenson.edu/","Click 'What's My User ID?' (bottom right)","Enter last name + SSN or Student ID number","Click submit — next screen shows username"], template:null, escalation:null },
+  { id:"restricted-vs-locked-vs-disabled", title:"Restricted vs Locked vs Disabled", category:"Login / Password", tags:["restricted","locked","disabled","error","myaccount"], summary:"Three different account states with different fixes. Check error message on myaccount.stevenson.edu.", steps:["Go to myaccount.stevenson.edu → Forgot my password → enter username","Read the error message carefully — it tells you which state","LOCKED → User can unlock themselves (FAQ 7)","RESTRICTED → Only Jason can unrestrict. Put 'restricted account' in ticket subject","DISABLED → Most serious. Shows in ADCheck and myaccount. Put 'disabled account' in ticket subject"], template:null, escalation:"Jason (restricted) / Ticket with subject line (disabled)" },
+  { id:"alumni", title:"Alumni", category:"Account Provisioning", tags:["alumni","graduated","access","6 months"], summary:"Auto process runs ~6 months after graduation. NO access after that. Staff alumni contact their previous dean.", steps:["Automatic process removes access ~6 months after graduation","No exceptions for students","Staff in Alumni container: have them reach out to previous dean if they need teaching access","FAQ 159 has the full policy"], template:null, escalation:null, resources:"Tax Docs: 443-334-3500 / studentaccounts@stevenson.edu | Transcripts: 443-334-2206 / registrar@stevenson.edu | Handshake: stevenson.edu/career-connection/handshake/" },
+  { id:"parent-proxy", title:"Parent/Proxy Login", category:"Account Provisioning", tags:["parent","proxy","login"], summary:"Parent/proxy accounts — auto-assigns when ticket type is set correctly.", steps:["Set ticket type: Technology: OIT → I Can't Login / Password Issue → I am a Parent / Proxy (auto-assigns)","Get the child's student ID → paste ADCheck in ticket","Get parent's email and phone number, CC them on ticket"], template:null, escalation:"Auto-assigned via ticket type" },
+  { id:"account-setup-instructions", title:"Account Setup Instructions", category:"Account Provisioning", tags:["setup","provisioned","new","account","instructions","email"], summary:"Setup instructions auto-email to external address. If it fails, use Manual Account Setup Instructions bulk action.", steps:["Instructions auto-email to external address when account is provisioned","If it fails: run bulk action 'Manual Account Setup Instructions' (bottom left of ticket window)","Confirm and accept — instructions sent. No risk if account isn't active.","NEVER tell a user their external email address or username. Direct them to webxpress.stevenson.edu"], template:null, escalation:null },
+  { id:"mfa-instructions", title:"MFA Instructions", category:"Account Provisioning", tags:["mfa","authenticator","qr","code","reset","enroll"], summary:"For first-time MFA enrollment or after reset. QR code at portal.office.com.", steps:["If MFA was reset: user must clear old Stevenson entry in Authenticator app first","Settings cog (top right) → select entry → Remove Account","Go to portal.office.com — QR code will appear","In Authenticator: Plus button → Work or school account → Scan QR Code","Enter the required number to confirm setup","Alternative: phone calls or SMS codes via 'I want to set up a different method'","For MFA resets: reach out to TEAM HELPDESK chat with the username"], template:"Hello,\n\nWe've reset your MFA - remove the existing entry in your app and then visit https://portal.office.com/ to re-enroll - press add in your app -> work or school -> scan the code, and you should be good!\n\nHowever, we now have more ways to authenticate besides the app. You can also select your phone and receive calls to authenticate or SMS codes. Select 'I want to set up a different method' when prompted.\n\nThank you,\n[Tech Name]", escalation:"TEAM HELPDESK chat (for MFA resets)" },
+  { id:"name-change", title:"Name Change / Username Change", category:"Account Provisioning", tags:["name","username","change","registrar","directory"], summary:"Username changes need a reason. Name changes must go through registrar first.", steps:["USERNAME CHANGE: Get desired new username and a reason","NAME CHANGE: Confirm user submitted Name change request with the registrar first","Once confirmed: change ticket type to Technology/OIT → Directory Listing Correction","Admin Apps team updates Colleague → Systems team updates Active Directory"], template:null, escalation:"Technology/OIT → Directory Listing Correction" },
+  { id:"returning-students", title:"Returning Students", category:"Account Provisioning", tags:["returning","student","reactivate","aup","provision"], summary:"Usually still have an account. May need AUP re-agreement. Accounts auto-reprovision.", steps:["Returning students likely have existing account","AUP: Set account expiration from never to a close date in AD, send user to sucloud.stevenson.edu","Accounts auto-reprovision when student returns","If it doesn't work: confirm enrollment status with registrar","OIT cannot contact registrar by phone as of 3/18/2025 — tell student to contact them","If still not working: escalate ticket to helpdesk manager"], template:null, escalation:"Helpdesk Manager" },
+  { id:"sso-instructions", title:"SSO Instructions Email", category:"Account Provisioning", tags:["sso","new student","activation","setup","accepted"], summary:"For students only. Full account activation walkthrough.", steps:["Get username at webxpress.stevenson.edu","Go to myaccount.stevenson.edu → Forgot your Password","Enter username → captcha → continue","Select external email → continue","Enter verification code","Install Microsoft Authenticator → scan QR code → enter 6-digit code","Set new SSO password","Agree to AUP at sucloud.stevenson.edu/LoginPolicy.jsp","Access portal at now.stevenson.edu"], template:"Welcome to Stevenson University!\n\nTo activate Your Single Sign-On, please use a computer or laptop.\n\n1. Get your username at https://webxpress.stevenson.edu\n2. Go to https://myaccount.stevenson.edu\n3. Select Forgot your Password\n4. Enter your username, then the captcha\n5. Select your external email and click continue\n6. Enter the verification code from your email\n7. Install Microsoft Authenticator and scan the QR code\n8. Set your new SSO Password\n9. Agree to the AUP at https://sucloud.stevenson.edu/LoginPolicy.jsp\n10. Log in at https://now.stevenson.edu/\n\nTechnology Support Center\n443-334-3000 or toll-free 866-344-8190\nhelpdesk@stevenson.edu", escalation:null },
+  { id:"student-doesnt-exist", title:"Student Doesn't Exist in System", category:"Account Provisioning", tags:["adcheck","not found","doesnt exist","new student","provision"], summary:"ADCheck returns nothing. Verify info, check start date, route accordingly.", steps:["Confirm you entered the right ID and checked AD Users and Computers","Check their start date:","MORE than 6 months away: Resolve ticket. Auto-provisioned.","LESS than 6 months away: Technology/OIT → Accounts Intake → Student Account Provisioning","Contact registrar with student info to confirm active status","ADMISSIONS ACCOUNT issues: not OIT — send to Admissions@stevenson.edu"], template:null, escalation:"Technology/OIT → Accounts Intake → Student Account Provisioning" },
+  { id:"suo-alumni", title:"SUO Alumni", category:"Account Provisioning", tags:["suo","online","alumni"], summary:"SUO alumni in User Lifecycle After/Alumni container. No on-prem access. 6 months of M365 only.", steps:["SUO alumni are in User Lifecycle After/Alumni container","Container blocks on-prem resources (Self Service, Blackboard)","Only 6 months of M365 after graduation","Accounts should be active in Entra — confirm with helpdesk manager"], template:null, escalation:"Helpdesk Manager" },
+  { id:"adobe-access", title:"Adobe Account Access", category:"Adobe", tags:["adobe","creative cloud","access"], summary:"Everyone can get Adobe CC. Students need course enrollment. Faculty/staff need a reason.", steps:["Students: must be enrolled in a graphic design course — get course ID","Faculty/Staff: must provide a reason. Confirm account info.","Change ticket type to Technology/OIT → Adobe → Permissions Request"], template:null, escalation:"Technology/OIT → Adobe → Permissions Request" },
+  { id:"adobe-personal", title:"Adobe Installation (Personal Device)", category:"Adobe", tags:["adobe","personal","install"], summary:"SU doesn't support personal devices. Point them to creativecloud.com.", steps:["SU does not support personal devices for liability reasons","Direct user to creativecloud.com to install themselves"], template:null, escalation:null },
+  { id:"adobe-su-device", title:"Adobe Installation (SU Device)", category:"Adobe", tags:["adobe","install","su device","workstation"], summary:"Admins push Adobe remotely. Get workstation name, leave PC on/logged off.", steps:["Get the user's workstation name","Leave computer plugged in/powered in and LOGGED OFF","Laptops: must be plugged into ethernet AND power","Install takes 30 minutes to 1 hour","Change ticket type to Technology/OIT → Adobe → Install Request"], template:null, escalation:"Technology/OIT → Adobe → Install Request" },
+  { id:"bb-cant-login", title:"Blackboard — I Can't Login", category:"Blackboard", tags:["blackboard","login","bb","username"], summary:"Confirm using USERNAME not USERNAME@stevenson.edu. Try password change. Escalate to Jason.", steps:["Confirm user is logging in with USERNAME (not USERNAME@stevenson.edu)","Check when they last changed their password","If still failing: assign ticket to Jason to check if user is enabled in BB","Provide account information in ticket notes"], template:null, escalation:"Jason" },
+  { id:"no-audio", title:"Classroom — No Audio", category:"Classroom Technology", tags:["audio","sound","classroom","projector","extron","epson"], summary:"Older rooms: check aux cable. Newer rooms: Extron volume, PC output set to Epson PJ.", steps:["OLDER CLASSROOMS: Confirm aux cable is plugged into the PC","NEWER CLASSROOMS:","Volume knob on Extron control panel is up and not muted","PC audio output is set to Epson PJ","Volume is up and enabled on the PC","If none works: power cycle everything"], template:null, escalation:null },
+  { id:"projector-bluescreen", title:"Projector — Blue Screen", category:"Classroom Technology", tags:["projector","blue","screen","bluescreen","podium"], summary:"Full troubleshooting flow: verify details, basic checks, power cycle podium switch.", steps:["Get professor name, room number, issue description","Go to the room — verify issue persists","Basic checks: PC and projector ON? Correct input? Cables secure?","Power cycle podium: flip Sequence switch, wait 30 sec, flip back, wait 30 sec","If fixed: close ticket","If not: update ticket with detailed notes, escalate","MAC SPECIFIC: Hold BOTH on/off buttons ~30 sec until flashing stops"], template:null, escalation:"Escalate with detailed troubleshooting notes" },
+  { id:"directory-info", title:"Incorrect Directory Info", category:"Directory", tags:["directory","incorrect","listing"], summary:"Directory maintained by Admin Apps team. Get correct info + reason.", steps:["Get the user's correct information","Get a reason for the change","Change ticket type to Technology/OIT → Directory Listing Correction"], template:null, escalation:"Technology/OIT → Directory Listing Correction" },
+  { id:"encrypt-email", title:"How to Encrypt Emails (S/MIME)", category:"Email / Webmail", tags:["encrypt","smime","certificate","outlook"], summary:"Requires valid reason. Certificate from N&I team.", steps:["Ask user for a reason — no reason, no certificate","Obtain certificate from Network & Infrastructure team","Import certificate (double click, follow prompts)","Configure Outlook: File → Options → Trust Center → Trust Center Settings → Email Security","Choose certificate under Signing and Encryption Certificate","Apply and save"], template:null, escalation:"Network & Infrastructure team" },
+  { id:"no-license", title:"Microsoft Account — No License", category:"Email / Webmail", tags:["license","microsoft","365","o365"], summary:"Everyone gets O365 by default. If auto fails: Students A5 for students, Faculty A5 for faculty.", steps:["All users get a license by default","Students: Microsoft 365 A5 for students use benefit","Faculty/Staff: Microsoft 365 A5 for faculty","Assign ticket to helpdesk manager with user info"], template:null, escalation:"Helpdesk Manager" },
+  { id:"shared-inbox", title:"Shared Inbox Access", category:"Email / Webmail", tags:["shared","inbox","mailbox","outlook"], summary:"Need access first via ticket to Systems. Classic Outlook: manual add. New Outlook: auto.", steps:["Change type to Technology/OIT → Email/Webmail Issue → Shared Inbox Access","CLASSIC OUTLOOK: File → Account Settings → Email → Change → More Settings → Advanced → Add","NEW OUTLOOK: Folder pane → Shared with me → expand → find shared mailbox"], template:null, escalation:"Technology/OIT → Email/Webmail Issue → Shared Inbox Access" },
+  { id:"network-ticket-procedure", title:"Network Issue Procedure", category:"Networking", tags:["network","n&i","ticket","wifi","connectivity"], summary:"Info to gather BEFORE sending any ticket to N&I.", steps:["Building and room number (residential: include room letter)","When did the issue start?","Where does the issue occur?","Availabilities for in-person visit","Additional: Extension, Wired or wireless, Which services affected"], template:"Please provide the following:\n- Building and room number:\n- When did the issue start?:\n- Where does the issue occur?:\n- Availabilities in case we need to come out:\n- Are you connected wired or wireless?:\n- Which services are you having issues with?:", escalation:"N&I team" },
+  { id:"ethernet-port", title:"Ethernet Port Not Working", category:"Networking", tags:["ethernet","port","patch","closet","cable"], summary:"Check ports, find network closet, verify patch panel to switch, patch if missing.", steps:["Note the numbers on the port","Find the nearest network closet and the black patch panel","Is there a cable from that port to the silver switch? No cable = no link","If missing: NEATLY patch a cable from switch to correct port","Test connectivity","If still not working: Technology/OIT → Network → Connectivity"], template:null, escalation:"Technology/OIT → Network → Connectivity (Wired or Wireless)" },
+  { id:"rdp-access", title:"Grant RDP Access", category:"Networking", tags:["rdp","remote","desktop","access","ad"], summary:"Requires AD rights. Local machine + 3 AD changes. Confirm at personalrdp.stevenson.edu in ~30 min.", steps:["ON LOCAL MACHINE: Edit Local Users and Groups → Groups → Remote Desktop Users → add username","IN AD: User attributes → swareRDPHost → add PC name","IN AD: EDUSERS → Cloud Groups → Personal Desktop Users → add username","IN AD: EDUSERS → Cloud Groups → Personal Desktop Workstations → add PC name","User confirms at personalrdp.stevenson.edu in ~30 min"], template:null, escalation:null },
+  { id:"personal-rdp", title:"Personal Remote Desktop", category:"Networking", tags:["rdp","remote","personal"], summary:"Machine must be on + ethernet. Go to personalrdp.stevenson.edu, download RDP profile.", steps:["Machine must be powered on and plugged into ethernet","Go to personalrdp.stevenson.edu","Download RDP profile, log in with SSO credentials"], template:null, escalation:null },
+  { id:"eduroam", title:"What is Eduroam?", category:"Networking", tags:["eduroam","wifi","wireless"], summary:"Federated wireless for universities. At SU: username@stevenson.edu + SSO password.", steps:["Eduroam lets users from participating institutions use WiFi at other campuses","At Stevenson: login with username@stevenson.edu and SSO password"], template:null, escalation:null },
+  { id:"new-equipment", title:"New Equipment Request", category:"Equipment", tags:["equipment","new","computer","purchase","budget"], summary:"Under 3 yrs: troubleshoot. Over 3 yrs: new equipment. Need budget code. Mike McGonigle.", steps:["Machine under 3 years: troubleshoot first","Machine over 3 years: proceed with request","Get: age, who is getting it, budget code (REQUIRED)","Change type to Technology/OIT → New Equipment Request","Mike McGonigle handles all orders"], template:null, escalation:"Technology/OIT → New Equipment Request (Mike McGonigle)" },
+  { id:"new-hire", title:"New Hire Technology Request", category:"Equipment", tags:["new hire","onboarding","project"], summary:"Break into separate tickets. Main ticket = Project assigned to you.", steps:["Main ticket → PROJECT, assign to yourself","1. Computer/Software: Technology/OIT → New Hire Technology Request","2. Datatel/Informer: Technology/OIT → Colleague → New Account or Changes","3. Phone: Technology/OIT → Phone Issue → Phone Move/Number Reassignment","4. Network Drive: Technology/OIT → Network Drive Mappings → Add Drive","5. Etrieve: Technology/OIT → Etrieve → New Account","Link all to parent ticket. Don't resolve until all complete"], template:null, escalation:null },
+  { id:"phone-break-work", title:"Phone — Break/Work Mode", category:"Phones", tags:["phone","break","work","mode"], summary:"Break: solid red, for personal time. Work: blinking red, code 0,0,7,# extends indefinitely.", steps:["BREAK: Press Break button (solid red). Press again to end.","WORK: Auto-activates 30 sec after login and calls.","Extend: Press Work → Tally → 0, 0, 7, # → solid red","Disable by pressing Work again"], template:null, escalation:null },
+  { id:"phone-login", title:"Log Into Shared Phone", category:"Phones", tags:["phone","login","shared","acd"], summary:"ACD login for shared extensions. Contact Eric Lewis for login. Press Login → 3-digit code → #.", steps:["Need ACD login? Contact Eric Lewis (wlewis3@stevenson.edu)","Press Login → enter 3-digit code → #"], template:null, escalation:"Eric Lewis (wlewis3@stevenson.edu)" },
+  { id:"phone-outgoing", title:"Place Outgoing Calls", category:"Phones", tags:["phone","call","outgoing"], summary:"Internal: 4-Digit Extension → extension. External: 8, 1, then number.", steps:["INTERNAL: Pick up → 4-Digit Extension button → enter extension","EXTERNAL: Pick up → 4-Digit Extension → 8, 1, then phone number","NEWER PHONES: Pick up → TechCon* button → 8, 1, then number"], template:null, escalation:null },
+  { id:"change-toner", title:"Change Toner", category:"Printers", tags:["toner","change","sharp","printer"], summary:"MX-6071 (big): open top. MX-3070 (small): open main cover. Recycle old toner.", steps:["MX-6071 (Big): Open top cover → pull empty → replace same orientation → close","MX-3070 (Small): Open main cover → swap → close","Printer resumes held jobs automatically","RECYCLE both box and cartridge in tech office recycling"], template:null, escalation:null },
+  { id:"printer-id", title:"ID Not Recognized by Printer", category:"Printers", tags:["printer","id","card","proxid","papercut","windsx"], summary:"Card values in WinDSX sync to Papercut nightly. Mismatch: fix in WinDSX, not Papercut.", steps:["Ask user for numbers on back of ID card","Only Papercut admins can check values","If mismatch: DON'T fix in Papercut (nightly sync overwrites)","Security needs to update WinDSX","After update: wait for overnight sync"], template:null, escalation:"Security (WinDSX update)" },
+  { id:"webprint", title:"WebPrint", category:"Printers", tags:["webprint","print","wireless","followyou","papercut"], summary:"Print wirelessly via supapercut.stevenson.edu. Must be on Eduroam or Stevenson wireless.", steps:["URL: supapercut.stevenson.edu","NOT WORKING? Check network — only works on Eduroam or Stevenson wireless"], template:null, escalation:null },
+];
+
+const PRINTERS = [
+  { building:"OMN - School of Design (SOD)", printers:[{id:"81333",name:"ONSOD124",location:"SOD124",model:"MX-6071S"}]},
+  { building:"OMN - Manning Academic Center (MAC)", printers:[{id:"80237",name:"ONMACN117",location:"N117",model:"MX-6071S"},{id:"80238",name:"ONMACN203",location:"N203",model:"MX-6071S"},{id:"80239",name:"ONMACS122",location:"S122",model:"MX-6071S"},{id:"80240",name:"ONMACS183",location:"S183",model:"MX-6071S"},{id:"80241",name:"ONMACS192L",location:"S192L",model:"MX-6071S"},{id:"80242",name:"ONMACS192R",location:"S192R",model:"MX-6071S"},{id:"80243",name:"ONMACS261",location:"S261",model:"MX-6071S"},{id:"80244",name:"ONMACS329",location:"S329",model:"MX-6071S"},{id:"82000",name:"ONMACS214",location:"S214",model:"MX-C303WH"}]},
+  { building:"OM - Caves (CA)", printers:[{id:"80230",name:"OMCA106ATHLETICS",location:"CA106",model:"MX-6071S"},{id:"80231",name:"OMCA237LOUNGE",location:"CA237",model:"MX-6071S"},{id:"81838",name:"OMCAWELLNESS",location:"CA207",model:"MX-C303WH"},{id:"81869",name:"OMCATRAINING",location:"CA120",model:"MX-C303WH"}]},
+  { building:"OM - Garrison Hall (GH)", printers:[{id:"81300",name:"OMGH121",location:"GH121",model:"MX-6071S"},{id:"81316",name:"OMGH230",location:"GH230",model:"MX-6071S"},{id:"81317",name:"OMGHFINAID",location:"GH244",model:"MX-6071S"},{id:"81318",name:"OMGHSTACCOUNTS",location:"GH225",model:"MX-6071S"},{id:"81449",name:"OMGH136",location:"GH136",model:"MX-6071S"},{id:"81498",name:"OMGHADMISSIONS",location:"GH245",model:"MX-6071S"},{id:"81499",name:"OMGHMKTGPR",location:"MKTG",model:"MX-6071S"},{id:"81837",name:"OMGHSTORE",location:"STORE",model:"MX-6071S"}]},
+  { building:"OM - Ratcliffe (RT)", printers:[{id:"80235",name:"OMRTCOPYROOM",location:"ResLife Copy Room",model:"MX-6071"},{id:"81870",name:"OMRTMAIN",location:"Main",model:"MX-C303WH"},{id:"81877",name:"OMRCSECURITY",location:"Security",model:"MX-C303WH"}]},
+  { building:"OM - Rockland (ROCK)", printers:[{id:"80232",name:"OMRC203STUDENTAFFAIRS",location:"ROCK203",model:"MX-6071S"},{id:"81878",name:"OMROCKKITCHEN",location:"Kitchen",model:"MX-C303WH"},{id:"81879",name:"OMROCK211",location:"ROCK211",model:"MX-C303WH"}]},
+  { building:"OM - School of Business (SBL)", printers:[{id:"80233",name:"OMSB1stFLOOR",location:"SBL100",model:"MX-6071S"},{id:"80236",name:"OMSBLIBRARY",location:"SBL Library",model:"MX-6071S"},{id:"81301",name:"OMSBL3rdFACULTY",location:"3rd Fl Workroom",model:"MX-6071S"},{id:"81302",name:"OMSBL4thFACULTY",location:"4th Fl Workroom",model:"MX-6071S"}]},
+  { building:"OM - Stadium (ST)", printers:[{id:"80234",name:"OMST31",location:"ST131",model:"MX-6071S"}]},
+  { building:"OM - Wooded Way (WW)", printers:[{id:"81303",name:"OMWWCAREER",location:"Career",model:"MX-6071S"},{id:"81320",name:"OMWWFACULTY",location:"Faculty",model:"MX-6071S"}]},
+];
+
+const BB_TECHS = {"Sam Page":{schools:"SOBL & SNHP"},"Thom Schlitzer":{schools:"SOE & SOS"},"Cindy Smidt":{schools:"SODAC & HASS"}};
+const BB_ROUTING = {
+  "Sam Page":["NATB","NURS","ACC","BTM","CDF","EC","FIN","INBUS","IS","LAW 470","MGT","MKT","PRST","GRAD 500","HCM","FMER","SVC","REG","INT","FYS"],
+  "Thom Schlitzer":["CHEM","FSCI","Education","MLS","MAT","PHIL","PSY 207","PSY 330","Biochemistry","Biology","BIO","Biomedical","Environmental","ENV","Mathematics","MATH","Physics","PHYS","ENG 282","MAT 145","MAT 206","MAT 207","PHIL 420","CBEL","LTED","CA_205","HON"],
+  "Cindy Smidt":["CHS","CJUS","ENG","GEN","HE","HIST","INDSC","LAW","MDH","POSCI","PSY","REL","SOC","CM","FMI","MUS","PHOTO","THEA","FSAAC","FSCOR","FSEL","FSLAW","FR","GEO","SPN","AMIN","ART","GDES","FDES","LDR"],
+};
+
+const FLOWCHARTS = {
+  "login-issue":{title:"User Can't Login",desc:"Walk through login/password troubleshooting",start:"q1",nodes:{q1:{q:"What system?",opts:[{l:"Portal / myaccount / Self Service",n:"q2"},{l:"Blackboard",n:"bb1"},{l:"Office 365 / Outlook / Teams",n:"o1"},{l:"Campus computer (Windows)",n:"pc1"}]},q2:{q:"Go to myaccount.stevenson.edu > Forgot password > enter username. What error?",opts:[{l:"Account Restricted (red text)",n:"r1"},{l:"Account Locked",n:"r2"},{l:"Account Disabled",n:"r3"},{l:"No error, just can't reset",n:"q3"},{l:"User doesn't show up",n:"q4"}]},q3:{q:"Getting the verification code?",opts:[{l:"Yes but reset fails after",n:"r4"},{l:"No, not receiving code",n:"r5"},{l:"Don't know their username",n:"r6"}]},q4:{q:"Checked ADCheck and AD Users and Computers?",opts:[{l:"Yes, nothing found",n:"q4b"},{l:"Haven't checked yet",n:"r7"}]},q4b:{q:"New student?",opts:[{l:"Start date 6+ months away",n:"r8"},{l:"Start date under 6 months",n:"r9"},{l:"No, should have an account",n:"r10"}]},bb1:{q:"Using USERNAME (not @stevenson.edu)?",opts:[{l:"Was using @stevenson.edu, fixed it",n:"r11"},{l:"Correct format, still failing",n:"bb2"}]},bb2:{q:"When did they last change password?",opts:[{l:"Recently, had them reset",n:"r12"},{l:"Been a while",n:"r13"}]},o1:{q:"Specific error?",opts:[{l:"Suspicious activity / flagged",n:"r14"},{l:"MFA issues (new phone)",n:"r15"},{l:"No license / can't access apps",n:"r16"},{l:"General sign in error",n:"r17"}]},pc1:{q:"What error on Windows login?",opts:[{l:"Domain not available",n:"r18"},{l:"Password incorrect (sure it's right)",n:"r19"},{l:"Other error",n:"r17"}]},r1:{r:true,t:"Account Restricted",a:"Make a ticket. Jason unrestricts. Teams chat for MFA/temp passwords only.",link:"account-restricted"},r2:{r:true,t:"Account Locked",a:"User self-unlocks via FAQ 7 at myaccount.stevenson.edu.",link:"restricted-vs-locked-vs-disabled"},r3:{r:true,t:"Account Disabled",a:"Serious. Ticket with 'disabled account' in subject.",link:"restricted-vs-locked-vs-disabled"},r4:{r:true,t:"MFA Issue",a:"Reach out to TEAM HELPDESK chat with username for MFA reset.",link:"mfa-instructions"},r5:{r:true,t:"Not Receiving Code",a:"Verify external email. If needs change, verify identity with student ID.",link:"external-email-change"},r6:{r:true,t:"Username Lookup",a:"Send to webxpress.stevenson.edu > What's My User ID.",link:"username-lookup"},r7:{r:true,t:"Check AD First",a:"Verify in ADCheck and AD Users and Computers before proceeding.",link:"student-doesnt-exist"},r8:{r:true,t:"Auto Provision (6+ months)",a:"Resolve ticket. Auto-provisioned, email when ready.",link:"student-doesnt-exist"},r9:{r:true,t:"Manual Provision (<6 months)",a:"Technology/OIT > Accounts Intake > Student Account Provisioning.",link:"student-doesnt-exist"},r10:{r:true,t:"Escalate to Manager",a:"Existing user missing from AD is unusual. Escalate to helpdesk manager."},r11:{r:true,t:"Likely Fixed",a:"BB needs USERNAME only. Try again without @stevenson.edu.",link:"bb-cant-login"},r12:{r:true,t:"Escalate to Jason",a:"Assign ticket to Jason to check if user enabled in BB.",link:"bb-cant-login"},r13:{r:true,t:"Password Change",a:"Have user change password at myaccount.stevenson.edu. BB syncs with AD.",link:"bb-cant-login"},r14:{r:true,t:"Suspicious Activity",a:"Ticket type: Technology/OIT > Systems. Jeremy Haas clears flag. Then reset password AND MFA.",link:"suspicious-activity"},r15:{r:true,t:"MFA Reset",a:"TEAM HELPDESK chat with username. User removes old entry, re-enrolls at portal.office.com.",link:"mfa-instructions"},r16:{r:true,t:"Missing License",a:"Assign to helpdesk manager. Students: A5 for students. Staff: A5 for faculty.",link:"no-license"},r17:{r:true,t:"Try Password Reset",a:"myaccount.stevenson.edu > Forgot password. Fixes many sync issues.",link:"password-reset"},r18:{r:true,t:"Domain Not Available",a:"Must be plugged into ethernet. Laptops cache credentials for 60 days.",link:"domain-unavailable"},r19:{r:true,t:"Cached Credentials",a:"Plug into ethernet to re-authenticate with domain controller.",link:"domain-unavailable"}}},
+  "printer-issue":{title:"Printer Issue",desc:"Troubleshoot printer problems",start:"p1",nodes:{p1:{q:"What's the issue?",opts:[{l:"Toner low / waste toner full",n:"p2"},{l:"ID card not recognized",n:"p3"},{l:"WebPrint not working",n:"p4"},{l:"Paper jam",n:"r20"},{l:"Printer offline",n:"r21"}]},p2:{q:"Toner cartridge or waste toner box?",opts:[{l:"Toner cartridge",n:"r22"},{l:"Waste toner box",n:"r23"}]},p3:{q:"Do you have Papercut admin access?",opts:[{l:"Yes",n:"r24"},{l:"No",n:"r25"}]},p4:{q:"What network are they on?",opts:[{l:"Eduroam or Stevenson",n:"r26"},{l:"Different / not sure",n:"r27"}]},r20:{r:true,t:"Paper Jam",a:"Clear jam. If recurring, contact vendor. Change ticket to Pending Vendor."},r21:{r:true,t:"Printer Offline",a:"Check power, network cable, try power cycling. If still down, check with N&I."},r22:{r:true,t:"Change Toner",a:"MX-6071: open top, swap. MX-3070: open main cover, swap. Recycle in tech office.",link:"change-toner"},r23:{r:true,t:"Waste Toner",a:"Ordered through vendor (JBUSS handles). Make ticket with printer ID."},r24:{r:true,t:"Check Papercut",a:"Compare card numbers to Papercut Card/Identity Numbers. If mismatch, security updates WinDSX.",link:"printer-id"},r25:{r:true,t:"Escalate",a:"Only Papercut admins can check. Include card numbers in ticket.",link:"printer-id"},r26:{r:true,t:"Network OK",a:"Check if Papercut is up. May be a wider outage.",link:"webprint"},r27:{r:true,t:"Wrong Network",a:"WebPrint only works on Eduroam or Stevenson wireless.",link:"webprint"}}},
+  "new-account":{title:"New Account / Provisioning",desc:"Handle new student, staff, or returning accounts",start:"a1",nodes:{a1:{q:"Who needs the account?",opts:[{l:"New student",n:"a2"},{l:"Returning student",n:"r28"},{l:"New hire",n:"r29"},{l:"Parent / Proxy",n:"r30"},{l:"Alumni",n:"a3"}]},a2:{q:"Did they get setup instructions?",opts:[{l:"No, never got them",n:"r31"},{l:"Yes but having trouble",n:"r32"},{l:"Not in system at all",n:"a2c"}]},a2c:{q:"Start date?",opts:[{l:"6+ months away",n:"r33"},{l:"Under 6 months",n:"r34"},{l:"Admissions account issue",n:"r35"}]},a3:{q:"Regular or SUO alumni?",opts:[{l:"Regular",n:"r36"},{l:"SUO",n:"r37"}]},r28:{r:true,t:"Returning Student",a:"Auto-reprovisions. May need AUP at sucloud.stevenson.edu. OIT can't call registrar.",link:"returning-students"},r29:{r:true,t:"New Hire",a:"Main ticket = PROJECT. Break into sub-tickets for computer, Colleague, phone, drive, Etrieve.",link:"new-hire"},r30:{r:true,t:"Parent / Proxy",a:"Set type: I am a Parent / Proxy. Get child's student ID, parent email/phone.",link:"parent-proxy"},r31:{r:true,t:"Resend Instructions",a:"Run Manual Account Setup Instructions bulk action. Never share username/email directly.",link:"account-setup-instructions"},r32:{r:true,t:"SSO Help",a:"Walk through steps or send SSO template.",link:"sso-instructions"},r33:{r:true,t:"Auto Provision",a:"Resolve ticket. Will be auto-provisioned.",link:"student-doesnt-exist"},r34:{r:true,t:"Manual Provision",a:"Technology/OIT > Accounts Intake > Student Account Provisioning.",link:"student-doesnt-exist"},r35:{r:true,t:"Admissions Issue",a:"Not OIT. Send to Admissions@stevenson.edu.",link:"student-doesnt-exist"},r36:{r:true,t:"Alumni",a:"No access after 6 months. Staff: contact previous dean.",link:"alumni"},r37:{r:true,t:"SUO Alumni",a:"In Alumni container. No on-prem access. 6 months M365 only.",link:"suo-alumni"}}},
+};
+
+const CAT_RULES = [
+  {kw:["can't login","cant login","can't log in","cant log in","password","locked out","restricted","disabled","forgot password","account restricted","frozen","froze out","won't let me in","wont let me in","can't get in","cant get in","won't accept my password","wont accept","login not working","sign in","signin","can't access my account","cant access","it says restricted","says locked","account locked","my account","won't work","keeps saying","wrong password","invalid password","denied","access denied","not letting me","it's not letting me","not accepting","keeps rejecting","error when i log","error when i try","something wrong with my account","account not working","account issue","account problem","i'm locked","im locked","kicked out","logged out","can't get into","self service","self-service","portal","myaccount","sspr","single sign on","sso"],cat:"I Can't Login / Password Issue",to:"Locked=self-fix (FAQ 7), Restricted=Jason, Disabled=ticket with subject",art:"restricted-vs-locked-vs-disabled",tip:"Go to myaccount.stevenson.edu > Forgot password > enter username to see the specific error."},
+  {kw:["suspicious","risky","flagged","compromised","unauthorized","hacked","someone logged into","someone got into","weird login","strange activity","foreign login","international","security alert","account breach","breach"],cat:"Technology/OIT > Systems",to:"Jeremy Haas",art:"suspicious-activity",tip:"Change ticket type to Systems, include all user info."},
+  {kw:["mfa","authenticator","new phone","verification","two factor","2fa","code","qr code","got a new phone","switched phones","new iphone","new android","approve","approval prompt","microsoft authenticator","can't verify","cant verify","verification code","setup authenticator","set up authenticator","scan","keeps asking me to verify","won't send code"],cat:"MFA Reset",to:"TEAM HELPDESK chat",art:"mfa-instructions",tip:"Get username, reach out to TEAM HELPDESK chat for reset."},
+  {kw:["parent","proxy","child","son","daughter","mom","dad","mother","father","my kid","my child","parent portal","parent account","proxy access","family"],cat:"I am a Parent / Proxy",to:"Auto-assigned via ticket type",art:"parent-proxy",tip:null},
+  {kw:["alumni","graduated","former student","old account","after graduation","i graduated","used to go","used to attend","previous student","i left","no longer a student","old student"],cat:"Alumni Policy",to:"Inform user of policy",art:"alumni",tip:null},
+  {kw:["new student","activate","activation","accepted","i was accepted","just got accepted","got in","admitted","enrollment deposit","orientation","incoming","i'm new","im new","just enrolled","first time","never logged in","don't have an account","dont have an account","setting up","set up my account","how do i get","how do i access","create account","create my account"],cat:"Account Setup / SSO",to:"Run Manual Account Setup Instructions",art:"sso-instructions",tip:null},
+  {kw:["returning","re-enroll","came back","took time off","was enrolled","took a break","break from school","time away","left and came back","reactivate","re-activate","used to be enrolled","coming back"],cat:"Returning Student",to:"Check AUP and auto-reprovision",art:"returning-students",tip:null},
+  {kw:["name change","username change","legal name","changed my name","wrong name","deadname","preferred name","my name is wrong","name is incorrect","update my name","update name"],cat:"Directory Listing Correction",to:"Admin Apps then Systems",art:"name-change",tip:null},
+  {kw:["external email","change email","change my email","different email","update my email","wrong email","old email","email on file","personal email","recovery email","can't receive","not getting emails to my personal"],cat:"External Email Change",to:"Helpdesk Manager (verify ID first)",art:"external-email-change",tip:null},
+  {kw:["adobe","creative cloud","photoshop","illustrator","indesign","acrobat","pdf editor","lightroom","premiere","after effects","adobe not working","need adobe","install adobe","can't open adobe","adobe won't","adobe crashed"],cat:"Technology/OIT > Adobe",to:"Students: course ID. Staff: reason.",art:"adobe-access",tip:null},
+  {kw:["blackboard","bb","course copy","gradebook","can't see my course","cant see my course","class not showing","assignment","grades","course empty","bb not loading","blackboard down","blackboard error","instructor","course site","bb site","oops something went wrong","session debug"],cat:"Blackboard",to:"Check BB Ticket Assignments tab",art:"bb-cant-login",tip:null},
+  {kw:["projector","blue screen","no display","podium","classroom screen","screen not working","nothing on screen","blank screen","screen is blue","can't project","cant project","won't display","wont display","hdmi","display not working","screen in room","no picture","no image"],cat:"Classroom Technology",to:"On-site troubleshooting",art:"projector-bluescreen",tip:null},
+  {kw:["no audio","no sound","can't hear","cant hear","volume","speaker","speakers","audio not working","sound not working","muted","no noise","video has no sound","can't hear anything","audio issue"],cat:"Classroom Audio",to:"On-site troubleshooting",art:"no-audio",tip:null},
+  {kw:["toner","waste toner","copier","printer error","paper jam","jam","jammed","jamming","out of toner","low toner","replace toner","toner box","waste box","ink","out of ink","cartridge"],cat:"Copier/Printer Issue",to:"JBUSS for vendor, self-fix for toner",art:"change-toner",tip:null},
+  {kw:["can't print","cant print","print job","followyou","webprint","card not working at printer","won't print","wont print","printing issue","printer not working","nothing prints","sent to printer","print queue","swipe","tap","badge","id card","printer doesn't recognize","printer won't recognize","follow you","my print","where is my print","lost my print","printer says","not printing"],cat:"Printer Issue",to:"Check Papercut/WebPrint/network",art:"webprint",tip:null},
+  {kw:["wifi","wireless","internet","no internet","can't connect","cant connect","ethernet","network","connection","slow internet","internet down","wifi down","wifi not working","no connection","keeps disconnecting","dropping","network not working","eduroam","su_connect","spotty","intermittent","lag","lagging","buffering","won't connect","wont connect","no wifi","web page","can't load","pages won't load","not loading"],cat:"Network > Connectivity",to:"Gather info first, then N&I",art:"network-ticket-procedure",tip:"Collect building, room, when it started before sending to N&I."},
+  {kw:["rdp","remote desktop","work from home","access my computer","remote access","access remotely","from home","connect to my office","vpn","work remotely","personal rdp","log in remotely","remote in"],cat:"RDP Access",to:"Requires AD rights",art:"rdp-access",tip:null},
+  {kw:["new computer","new laptop","replace computer","new equipment","need a computer","computer is old","slow computer","computer broke","need replacement","upgrade computer","broken computer","dead computer","won't turn on","wont turn on","not powering on","blue screen of death","bsod","keeps crashing","screen cracked","broken screen","monitor","need a monitor","need equipment"],cat:"New Equipment Request",to:"Mike McGonigle (need budget code)",art:"new-equipment",tip:null},
+  {kw:["new hire","new employee","onboarding","starting soon","new staff","just hired","new person","new faculty","joining","starts on","start date"],cat:"New Hire Technology Request",to:"Create PROJECT ticket",art:"new-hire",tip:null},
+  {kw:["shared inbox","shared mailbox","shared email","group email","team email","department email","club email","org email","organization email"],cat:"Shared Inbox Access",to:"Systems for approval",art:"shared-inbox",tip:null},
+  {kw:["license","no license","office apps","can't use word","cant use word","excel not working","teams not working","office not working","microsoft apps","word won't open","outlook won't open","no access to office","office 365"],cat:"M365 License",to:"Helpdesk Manager",art:"no-license",tip:null},
+  {kw:["qualtrics","survey","survey tool"],cat:"Likely account locked",to:"Direct to myaccount.stevenson.edu",art:"restricted-vs-locked-vs-disabled",tip:"Qualtrics uses SSO — a locked SU account means locked Qualtrics."},
+  {kw:["phone","desk phone","office phone","extension","voicemail","can't make calls","cant make calls","phone not working","dial","ring","transfer","phone setup"],cat:"Phone Issue",to:"Check phone login/mode or escalate",art:"phone-login",tip:null},
+  {kw:["teams","teams meeting","breakout","breakout room","video call","camera","webcam","mic","microphone","teams not loading","teams call","can't join meeting","screen share","sharing screen"],cat:"MS Teams Issue",to:"Check licensing and settings",art:null,tip:"Teams issues may require checking the user's M365 license."},
+  {kw:["email","outlook","can't send","cant send","not receiving","inbox","mailbox","email not working","outlook won't open","outlook crashed","outlook error","delayed","bounce","bounced","undeliverable","out of office"],cat:"Email / Outlook Issue",to:"Check account status and license",art:null,tip:"Many email issues resolve with a password reset at myaccount.stevenson.edu."},
+  {kw:["software","install","application","app","program","download","need software","install software","can't open","won't open","update","upgrade","spss","arcgis","lockdown browser","respondus"],cat:"Software Install / Issue",to:"Check if available, may need admin push",art:null,tip:"SU devices: admins push remotely. Personal devices: not supported."},
+  {kw:["move","office move","relocate","moving offices","new office","computer move","set up in new","different room","transferred"],cat:"Computer Move",to:"Desktop support team",art:null,tip:"Get old and new location details."},
+  {kw:["midterm","grades","grade","self service","self-service","faculty tab","submit grades","enter grades","grade submission","webxpress","web express","registration","transcript","financial aid","fin aid","fafsa","bill","tuition","payment","balance"],cat:"Self Service / Portal Issue",to:"May need account check or redirect to registrar/business office",art:null,tip:"If login works but content is wrong, this may be a registrar or business office issue, not OIT."},
+];
+
+function CopyBtn({ text }) {
+  const [c, setC] = useState(false);
+  return <button style={{position:"absolute",top:8,right:8,background:c?"#4ade80":"#38bdf8",color:"#0a0e14",border:"none",borderRadius:4,padding:"4px 12px",fontSize:11,fontFamily:"var(--font-mono)",fontWeight:600,cursor:"pointer"}} onClick={() => { navigator.clipboard.writeText(text); setC(true); setTimeout(() => setC(false), 2000); }}>{c ? "COPIED" : "COPY"}</button>;
+}
+
+function ArticleView({ article, onBack }) {
+  return <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:8,overflow:"hidden"}}>
+    <div style={{padding:"20px 24px",borderBottom:"1px solid var(--border)"}}>
+      <button onClick={onBack} style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--accent)",cursor:"pointer",border:"none",background:"none",marginBottom:12,padding:0}}>← Back</button>
+      <div style={{fontSize:20,fontWeight:700,marginBottom:6}}>{article.title}</div>
+      <span style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--accent)",background:"rgba(56,189,248,0.15)",padding:"2px 8px",borderRadius:3}}>{article.category}</span>
+    </div>
+    <div style={{padding:"20px 24px"}}>
+      <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,color:"var(--accent)",marginBottom:8}}>Summary</div>
+      <p style={{color:"var(--text-secondary)",fontSize:14,marginBottom:16}}>{article.summary}</p>
+      <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,color:"var(--accent)",margin:"20px 0 8px"}}>Steps</div>
+      <ul style={{listStyle:"none",padding:0}}>
+        {article.steps.map((s,i) => <li key={i} style={{padding:"8px 0 8px 16px",borderLeft:"2px solid var(--border)",fontSize:14,marginBottom:2}}>{s}</li>)}
+      </ul>
+      {article.template && <>
+        <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,color:"var(--accent)",margin:"20px 0 8px"}}>Response template</div>
+        <div style={{background:"var(--bg-tertiary)",border:"1px solid var(--border)",borderRadius:6,padding:"14px 80px 14px 16px",fontSize:13,color:"var(--text-secondary)",whiteSpace:"pre-wrap",fontFamily:"var(--font-mono)",lineHeight:1.6,position:"relative"}}><CopyBtn text={article.template} />{article.template}</div>
+      </>}
+      {article.escalation && <>
+        <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,color:"var(--accent)",margin:"20px 0 8px"}}>Escalation</div>
+        <div style={{background:"rgba(167,139,250,0.15)",border:"1px solid rgba(167,139,250,0.3)",borderRadius:6,padding:"10px 14px",fontSize:13,color:"#a78bfa",fontWeight:500}}>→ {article.escalation}</div>
+      </>}
+      {article.resources && <>
+        <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,color:"var(--accent)",margin:"20px 0 8px"}}>Resources</div>
+        <div style={{background:"rgba(74,222,128,0.15)",border:"1px solid rgba(74,222,128,0.3)",borderRadius:6,padding:"10px 14px",fontSize:13,color:"#4ade80",lineHeight:1.6}}>{article.resources}</div>
+      </>}
+    </div>
+  </div>;
+}
+
+function Flowchart({ flowId, onBack, onArticle }) {
+  const flow = FLOWCHARTS[flowId];
+  const [path, setPath] = useState([flow.start]);
+  const node = flow.nodes[path[path.length - 1]];
+  if (node.r) {
+    return <div>
+      <button onClick={onBack} style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--accent)",cursor:"pointer",border:"none",background:"none",marginBottom:16}}>← Back</button>
+      <h2 style={{fontSize:18,fontWeight:700,marginBottom:16}}>{flow.title}</h2>
+      <div style={{background:"rgba(74,222,128,0.15)",border:"1px solid rgba(74,222,128,0.3)",borderRadius:8,padding:20}}>
+        <h3 style={{color:"#4ade80",fontSize:15,marginBottom:8}}>{"✓ " + node.t}</h3>
+        <p style={{color:"var(--text-primary)",fontWeight:500,fontSize:14,lineHeight:1.6}}>{node.a}</p>
+        {node.link && <button onClick={() => onArticle(node.link)} style={{marginTop:12,background:"none",border:"1px solid rgba(74,222,128,0.3)",color:"#4ade80",padding:"6px 14px",borderRadius:4,cursor:"pointer",fontSize:13,fontFamily:"var(--font-mono)"}}>View KB article →</button>}
+        <br/><button onClick={() => setPath([flow.start])} style={{marginTop:12,background:"none",border:"1px solid var(--border)",color:"var(--text-secondary)",padding:"8px 16px",borderRadius:4,cursor:"pointer",fontSize:13}}>↩ Start over</button>
+      </div>
+    </div>;
+  }
+  return <div>
+    <button onClick={onBack} style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--accent)",cursor:"pointer",border:"none",background:"none",marginBottom:16}}>← Back</button>
+    <h2 style={{fontSize:18,fontWeight:700,marginBottom:16}}>{flow.title}</h2>
+    <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:8,padding:24}}>
+      <div style={{fontSize:16,fontWeight:600,marginBottom:16}}>{node.q}</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {node.opts.map((o,i) => <button key={i} onClick={() => setPath([...path, o.n])} style={{background:"var(--bg-tertiary)",border:"1px solid var(--border)",borderRadius:6,padding:"12px 16px",fontSize:14,color:"var(--text-primary)",cursor:"pointer",textAlign:"left",fontFamily:"inherit"}}>{o.l}</button>)}
+      </div>
+    </div>
+  </div>;
+}
+
+function SubnetCalc() {
+  const [ip, setIp] = useState("10.10.50.25");
+  const [cidr, setCidr] = useState("24");
+  const [result, setResult] = useState(null);
+
+  const calc = () => {
+    const parts = ip.split(".").map(Number);
+    const c = parseInt(cidr);
+    if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255) || isNaN(c) || c < 0 || c > 32) {
+      setResult({ error: "Invalid IP or CIDR" }); return;
+    }
+    const mask = c === 0 ? 0 : (0xFFFFFFFF << (32 - c)) >>> 0;
+    const ipn = ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+    const net = (ipn & mask) >>> 0;
+    const bcast = (net | (~mask >>> 0)) >>> 0;
+    const first = c >= 31 ? net : (net + 1) >>> 0;
+    const last = c >= 31 ? bcast : (bcast - 1) >>> 0;
+    const hosts = c >= 31 ? Math.pow(2, 32 - c) : Math.pow(2, 32 - c) - 2;
+    const toIp = n => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join(".");
+    const toMask = m => [(m >>> 24) & 255, (m >>> 16) & 255, (m >>> 8) & 255, m & 255].join(".");
+    const wc = (~mask) >>> 0;
+    setResult({
+      network: toIp(net) + "/" + c, subnetMask: toMask(mask), wildcard: toMask(wc),
+      broadcast: toIp(bcast), firstHost: toIp(first), lastHost: toIp(last),
+      totalHosts: Math.max(0, hosts),
+      ipClass: parts[0] < 128 ? "A" : parts[0] < 192 ? "B" : parts[0] < 224 ? "C" : "D/E",
+      isPrivate: (parts[0] === 10) || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || (parts[0] === 192 && parts[1] === 168),
+    });
+  };
+
+  const fields = result && !result.error ? [
+    ["Network address", result.network, "var(--accent)", "rgba(56,189,248,0.15)"],
+    ["Subnet mask", result.subnetMask, "var(--text-primary)", "var(--bg-secondary)"],
+    ["Wildcard mask", result.wildcard, "var(--text-secondary)", "var(--bg-secondary)"],
+    ["Broadcast address", result.broadcast, "#fbbf24", "rgba(251,191,36,0.15)"],
+    ["First usable host", result.firstHost, "#4ade80", "rgba(74,222,128,0.15)"],
+    ["Last usable host", result.lastHost, "#4ade80", "rgba(74,222,128,0.15)"],
+    ["Total usable hosts", result.totalHosts.toLocaleString(), "#a78bfa", "rgba(167,139,250,0.15)"],
+    ["IP class", "Class " + result.ipClass + (result.isPrivate ? " (private)" : " (public)"), "var(--text-secondary)", "var(--bg-secondary)"],
+  ] : null;
+
+  return <>
+    <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,color:"var(--text-muted)",marginBottom:12}}>Subnet calculator</div>
+    <div style={{display:"flex",gap:12,marginBottom:16,alignItems:"flex-end",flexWrap:"wrap"}}>
+      <div style={{flex:1,minWidth:200}}>
+        <label style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--text-muted)",display:"block",marginBottom:4}}>IP address</label>
+        <input value={ip} onChange={e => setIp(e.target.value)} style={{width:"100%",background:"var(--bg-tertiary)",border:"1px solid var(--border)",borderRadius:6,padding:"12px 16px",fontSize:15,color:"var(--text-primary)",fontFamily:"inherit",outline:"none"}} />
+      </div>
+      <div style={{width:100}}>
+        <label style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--text-muted)",display:"block",marginBottom:4}}>CIDR (0-32)</label>
+        <input value={cidr} onChange={e => setCidr(e.target.value)} style={{width:"100%",background:"var(--bg-tertiary)",border:"1px solid var(--border)",borderRadius:6,padding:"12px 16px",fontSize:15,color:"var(--text-primary)",fontFamily:"inherit",outline:"none"}} />
+      </div>
+      <button onClick={calc} style={{background:"#38bdf8",color:"#0a0e14",border:"none",borderRadius:6,padding:"12px 24px",fontSize:14,fontWeight:600,cursor:"pointer"}}>Calculate</button>
+    </div>
+    <div style={{fontSize:13,color:"var(--text-muted)",marginBottom:16}}>Common CIDRs: /24 = 254 hosts (most common), /16 = 65,534 hosts, /8 = 16 million hosts</div>
+    {result && result.error && <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,padding:16,textAlign:"center",color:"#f87171"}}>{result.error}</div>}
+    {fields && <>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        {fields.map((f, i) => <div key={i} style={{background:f[3],border:"1px solid var(--border)",borderRadius:6,padding:"12px 16px"}}>
+          <div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>{f[0]}</div>
+          <div style={{fontSize:18,fontWeight:600,color:f[2],fontFamily:"var(--font-mono)"}}>{f[1]}</div>
+        </div>)}
+      </div>
+      <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:8,padding:16,marginTop:16}}>
+        <div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--accent)",textTransform:"uppercase",letterSpacing:1.5,marginBottom:8}}>What this means</div>
+        <p style={{fontSize:14,color:"var(--text-secondary)",lineHeight:1.6}}>
+          Any device with an IP between <span style={{color:"#4ade80",fontFamily:"var(--font-mono)"}}>{result.firstHost}</span> and <span style={{color:"#4ade80",fontFamily:"var(--font-mono)"}}>{result.lastHost}</span> is in the same subnet. They can talk directly. The broadcast address <span style={{color:"#fbbf24",fontFamily:"var(--font-mono)"}}>{result.broadcast}</span> reaches all {result.totalHosts.toLocaleString()} devices at once.
+        </p>
+      </div>
+    </>}
+  </>;
+}
+
+function Categorizer({ onArticle }) {
+  const [text, setText] = useState("");
+  const [results, setResults] = useState(null);
+
+  const analyze = () => {
+    if (!text.trim()) { setResults(null); return; }
+    const q = text.toLowerCase();
+    let matches = [];
+    CAT_RULES.forEach(rule => {
+      let score = 0;
+      rule.kw.forEach(kw => { if (q.includes(kw)) score++; });
+      if (score > 0) matches.push({ rule, score });
+    });
+    matches.sort((a, b) => b.score - a.score);
+    setResults(matches.slice(0, 3));
+  };
+
+  return <>
+    <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,color:"var(--text-muted)",marginBottom:12}}>Paste ticket text or describe the issue</div>
+    <textarea value={text} onChange={e => setText(e.target.value)} placeholder={"Paste the ticket email or describe the issue here...\n\nExample: I can not log into my account, it says restricted"} style={{width:"100%",minHeight:120,background:"var(--bg-tertiary)",border:"1px solid var(--border)",borderRadius:6,padding:14,fontSize:14,color:"var(--text-primary)",fontFamily:"inherit",resize:"vertical",outline:"none",marginBottom:12}} />
+    <button onClick={analyze} style={{background:"#38bdf8",color:"#0a0e14",border:"none",borderRadius:6,padding:"10px 24px",fontSize:14,fontWeight:600,cursor:"pointer",marginBottom:20}}>Analyze Ticket</button>
+    {results && results.length === 0 && <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,padding:16,textAlign:"center",color:"#fbbf24"}}>No match found. Try including more details.</div>}
+    {results && results.length > 0 && results.map((m, i) => <div key={i} style={{background:"var(--bg-secondary)",border:"1px solid " + (i === 0 ? "var(--accent)" : "var(--border)"),borderRadius:8,padding:20,marginBottom:10}}>
+      {i === 0 && <div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"#4ade80",marginBottom:8,textTransform:"uppercase",letterSpacing:1.5}}>Best match</div>}
+      <div style={{fontSize:16,fontWeight:600,marginBottom:8}}>{m.rule.cat}</div>
+      <div style={{marginBottom:8}}>
+        <span style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:1}}>Assign to: </span>
+        <span style={{fontSize:14,color:"#a78bfa"}}>{m.rule.to}</span>
+      </div>
+      {m.rule.art && <button onClick={() => onArticle(m.rule.art)} style={{background:"none",border:"1px solid rgba(56,189,248,0.5)",color:"#38bdf8",padding:"4px 12px",borderRadius:4,cursor:"pointer",fontSize:12,fontFamily:"var(--font-mono)",marginBottom:8}}>View KB article →</button>}
+      {m.rule.tip && <div style={{marginTop:8}}>
+        <div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Tip</div>
+        <div style={{fontSize:13,color:"var(--text-secondary)",background:"var(--bg-tertiary)",padding:10,borderRadius:4}}>{m.rule.tip}</div>
+      </div>}
+    </div>)}
+  </>;
+}
+
+function App() {
+  const [tab, setTab] = useState("kb");
+  const [search, setSearch] = useState("");
+  const [article, setArticle] = useState(null);
+  const [flowId, setFlowId] = useState(null);
+  const [bbSearch, setBbSearch] = useState("");
+  const [printerSearch, setPrinterSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!search) return KB_ARTICLES;
+    const q = search.toLowerCase();
+    return KB_ARTICLES.filter(a => a.title.toLowerCase().includes(q) || a.summary.toLowerCase().includes(q) || a.tags.some(t => t.includes(q)));
+  }, [search]);
+
+  const grouped = useMemo(() => {
+    const g = {};
+    filtered.forEach(a => { if (!g[a.category]) g[a.category] = []; g[a.category].push(a); });
+    return g;
+  }, [filtered]);
+
+  const bbResult = useMemo(() => {
+    if (!bbSearch) return null;
+    const q = bbSearch.toUpperCase().trim();
+    for (const [tech, prefixes] of Object.entries(BB_ROUTING)) {
+      if (prefixes.some(p => q.startsWith(p.toUpperCase()) || p.toUpperCase().startsWith(q))) return { tech, ...BB_TECHS[tech] };
+    }
+    return { tech: null };
+  }, [bbSearch]);
+
+  const filteredPrinters = useMemo(() => {
+    if (!printerSearch) return PRINTERS;
+    const q = printerSearch.toLowerCase();
+    return PRINTERS.map(b => ({ ...b, printers: b.printers.filter(p => p.id.includes(q) || p.name.toLowerCase().includes(q) || p.location.toLowerCase().includes(q) || b.building.toLowerCase().includes(q)) })).filter(b => b.printers.length > 0);
+  }, [printerSearch]);
+
+  const goArticle = (id) => { setArticle(KB_ARTICLES.find(a => a.id === id)); setTab("kb"); setFlowId(null); };
+
+  const css = `@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+  * { margin:0;padding:0;box-sizing:border-box; }
+  :root { --bg-primary:#0a0e14;--bg-secondary:#111820;--bg-tertiary:#1a2230;--bg-hover:#1e2a3a;--border:#2a3545;--border-light:#354560;--text-primary:#e0e6ed;--text-secondary:#8899aa;--text-muted:#556677;--accent:#38bdf8;--font-mono:'JetBrains Mono',monospace;--font-sans:'Source Sans 3',sans-serif; }
+  body { background:var(--bg-primary);color:var(--text-primary);font-family:var(--font-sans);line-height:1.5; }
+  .tabs { display:flex;gap:2px;padding:0 24px;background:var(--bg-secondary);border-bottom:1px solid var(--border);overflow-x:auto; }
+  .tab { padding:12px 16px;font-size:13px;font-weight:500;color:var(--text-secondary);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:var(--font-sans); }
+  .tab:hover { color:var(--text-primary);background:var(--bg-hover); }
+  .tab.active { color:var(--accent);border-bottom-color:var(--accent);background:rgba(56,189,248,0.15); }`;
+
+  return <>
+    <style>{css}</style>
+    <div style={{minHeight:"100vh",display:"flex",flexDirection:"column"}}>
+      <div style={{background:"var(--bg-secondary)",borderBottom:"1px solid var(--border)",padding:"16px 24px",display:"flex",alignItems:"center",gap:16,position:"sticky",top:0,zIndex:100}}>
+        <div style={{background:"#38bdf8",color:"#0a0e14",fontFamily:"var(--font-mono)",fontWeight:700,fontSize:13,padding:"6px 10px",borderRadius:4}}>SU</div>
+        <div style={{fontSize:18,fontWeight:600}}>Helpdesk Companion</div>
+        <div style={{fontSize:13,color:"var(--text-muted)",marginLeft:"auto",fontFamily:"var(--font-mono)"}}>Stevenson OIT</div>
+      </div>
+      <div className="tabs">
+        {[["kb","Knowledge Base"],["flow","Troubleshoot"],["bb","BB Routing"],["printers","Printer Lookup"],["categorize","Categorizer"],["subnet","Subnet Calc"]].map(([id,label]) =>
+          <button key={id} className={"tab" + (tab===id?" active":"")} onClick={() => { setTab(id); if(id==="kb") setArticle(null); if(id==="flow") setFlowId(null); }}>{label}</button>
+        )}
+      </div>
+      {tab === "kb" && !article && <div style={{padding:"16px 24px",background:"var(--bg-primary)",borderBottom:"1px solid var(--border)",position:"sticky",top:57,zIndex:99}}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search articles..." style={{width:"100%",background:"var(--bg-tertiary)",border:"1px solid var(--border)",borderRadius:6,padding:"12px 16px",fontSize:15,color:"var(--text-primary)",fontFamily:"inherit",outline:"none"}} />
+      </div>}
+      <div style={{flex:1,padding:"20px 24px",maxWidth:1200,margin:"0 auto",width:"100%"}}>
+        {tab === "kb" && !article && Object.entries(grouped).map(([cat, arts]) => <div key={cat}>
+          <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,color:"var(--text-muted)",margin:"24px 0 8px"}}>{cat}</div>
+          {arts.map(a => <div key={a.id} onClick={() => setArticle(a)} style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,padding:"14px 18px",marginBottom:6,cursor:"pointer"}}>
+            <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>{a.title}</div>
+            <div style={{fontSize:13,color:"var(--text-secondary)"}}>{a.summary}</div>
+          </div>)}
+        </div>)}
+        {tab === "kb" && article && <ArticleView article={article} onBack={() => setArticle(null)} />}
+
+        {tab === "flow" && !flowId && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {Object.entries(FLOWCHARTS).map(([id,f]) => <div key={id} onClick={() => setFlowId(id)} style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:8,padding:20,cursor:"pointer"}}>
+            <h3 style={{fontSize:15,marginBottom:6}}>{f.title}</h3>
+            <p style={{fontSize:13,color:"var(--text-muted)"}}>{f.desc}</p>
+          </div>)}
+        </div>}
+        {tab === "flow" && flowId && <Flowchart flowId={flowId} onBack={() => setFlowId(null)} onArticle={goArticle} />}
+
+        {tab === "bb" && <>
+          <input value={bbSearch} onChange={e => setBbSearch(e.target.value)} placeholder="Enter course prefix (e.g. ACC, CHEM, PSY)..." style={{width:"100%",background:"var(--bg-tertiary)",border:"1px solid var(--border)",borderRadius:6,padding:"12px 16px",fontSize:15,color:"var(--text-primary)",fontFamily:"inherit",outline:"none",marginBottom:16}} />
+          {bbResult && bbResult.tech && <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,padding:16,textAlign:"center",marginBottom:16}}>
+            <div style={{fontSize:20,fontWeight:700,color:bbResult.tech==="Sam Page"?"#38bdf8":bbResult.tech==="Thom Schlitzer"?"#4ade80":"#a78bfa"}}>→ {bbResult.tech}</div>
+            <div style={{fontSize:13,fontFamily:"var(--font-mono)",color:"var(--text-muted)"}}>{bbResult.schools}</div>
+          </div>}
+          {bbResult && !bbResult.tech && <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,padding:16,textAlign:"center",marginBottom:16,color:"#fbbf24"}}>No match — check columns below</div>}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+            {Object.entries(BB_TECHS).map(([tech,info],i) => <div key={tech} style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,overflow:"hidden"}}>
+              <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",fontWeight:600,fontSize:14,background:i===0?"rgba(56,189,248,0.15)":i===1?"rgba(74,222,128,0.15)":"rgba(167,139,250,0.15)",color:i===0?"#38bdf8":i===1?"#4ade80":"#a78bfa"}}>{tech}<br/><small style={{fontSize:11,fontFamily:"var(--font-mono)",fontWeight:400,color:"var(--text-muted)"}}>{info.schools}</small></div>
+              <div style={{padding:"8px 12px",maxHeight:300,overflowY:"auto"}}>{BB_ROUTING[tech].map((p,j) => <div key={j} style={{fontSize:13,color:"var(--text-secondary)",padding:"3px 0",borderBottom:"1px solid var(--border)"}}>{p}</div>)}</div>
+            </div>)}
+          </div>
+        </>}
+
+        {tab === "printers" && <>
+          <input value={printerSearch} onChange={e => setPrinterSearch(e.target.value)} placeholder="Search by ID, name, location, or building..." style={{width:"100%",background:"var(--bg-tertiary)",border:"1px solid var(--border)",borderRadius:6,padding:"12px 16px",fontSize:15,color:"var(--text-primary)",fontFamily:"inherit",outline:"none",marginBottom:16}} />
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr>{["ID","Name","Location","Model"].map(h => <th key={h} style={{textAlign:"left",padding:"8px 12px",fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",color:"var(--text-muted)",borderBottom:"1px solid var(--border)"}}>{h}</th>)}</tr></thead>
+            <tbody>{filteredPrinters.map(b => <>{<tr key={b.building}><td colSpan={4} style={{fontFamily:"var(--font-mono)",fontWeight:600,color:"#38bdf8",background:"rgba(56,189,248,0.15)",fontSize:12,padding:"6px 12px"}}>{b.building}</td></tr>}{b.printers.map(p => <tr key={p.id}><td style={{padding:"7px 12px",borderBottom:"1px solid var(--border)",color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontSize:12}}>{p.id}</td><td style={{padding:"7px 12px",borderBottom:"1px solid var(--border)",color:"var(--text-secondary)"}}>{p.name}</td><td style={{padding:"7px 12px",borderBottom:"1px solid var(--border)",color:"var(--text-secondary)"}}>{p.location}</td><td style={{padding:"7px 12px",borderBottom:"1px solid var(--border)",color:"var(--text-secondary)"}}>{p.model}</td></tr>)}</>)}</tbody>
+          </table>
+        </>}
+
+        {tab === "categorize" && <Categorizer onArticle={goArticle} />}
+        {tab === "subnet" && <SubnetCalc />}
+      </div>
+    </div>
+  </>;
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
