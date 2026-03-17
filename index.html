@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SU Helpdesk Companion</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect fill='%2338bdf8' width='32' height='32' rx='4'/><text x='16' y='22' text-anchor='middle' fill='%230a0e14' font-family='monospace' font-weight='bold' font-size='16'>SU</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect fill='%231B6B3A' width='32' height='32' rx='4'/><text x='16' y='22' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold' font-size='16'>SU</text></svg>">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
@@ -114,7 +114,7 @@ const CAT_RULES = [
 
 function CopyBtn({ text }) {
   const [c, setC] = useState(false);
-  return <button style={{position:"absolute",top:8,right:8,background:c?"#4ade80":"#38bdf8",color:"#0a0e14",border:"none",borderRadius:4,padding:"4px 12px",fontSize:11,fontFamily:"var(--font-mono)",fontWeight:600,cursor:"pointer"}} onClick={() => { navigator.clipboard.writeText(text); setC(true); setTimeout(() => setC(false), 2000); }}>{c ? "COPIED" : "COPY"}</button>;
+  return <button style={{position:"absolute",top:8,right:8,background:c?"#5CC97A":"#1B6B3A",color:"#ffffff",border:"none",borderRadius:4,padding:"4px 12px",fontSize:11,fontFamily:"var(--font-mono)",fontWeight:600,cursor:"pointer"}} onClick={() => { navigator.clipboard.writeText(text); setC(true); setTimeout(() => setC(false), 2000); }}>{c ? "COPIED" : "COPY"}</button>;
 }
 
 function ArticleView({ article, onBack }) {
@@ -122,7 +122,7 @@ function ArticleView({ article, onBack }) {
     <div style={{padding:"20px 24px",borderBottom:"1px solid var(--border)"}}>
       <button onClick={onBack} style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--accent)",cursor:"pointer",border:"none",background:"none",marginBottom:12,padding:0}}>← Back</button>
       <div style={{fontSize:20,fontWeight:700,marginBottom:6}}>{article.title}</div>
-      <span style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--accent)",background:"rgba(56,189,248,0.15)",padding:"2px 8px",borderRadius:3}}>{article.category}</span>
+      <span style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--accent)",background:"rgba(27,107,58,0.2)",padding:"2px 8px",borderRadius:3}}>{article.category}</span>
     </div>
     <div style={{padding:"20px 24px"}}>
       <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,color:"var(--accent)",marginBottom:8}}>Summary</div>
@@ -137,11 +137,11 @@ function ArticleView({ article, onBack }) {
       </>}
       {article.escalation && <>
         <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,color:"var(--accent)",margin:"20px 0 8px"}}>Escalation</div>
-        <div style={{background:"rgba(167,139,250,0.15)",border:"1px solid rgba(167,139,250,0.3)",borderRadius:6,padding:"10px 14px",fontSize:13,color:"#a78bfa",fontWeight:500}}>→ {article.escalation}</div>
+        <div style={{background:"rgba(168,184,192,0.15)",border:"1px solid rgba(168,184,192,0.3)",borderRadius:6,padding:"10px 14px",fontSize:13,color:"#A8B8C0",fontWeight:500}}>→ {article.escalation}</div>
       </>}
       {article.resources && <>
         <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,color:"var(--accent)",margin:"20px 0 8px"}}>Resources</div>
-        <div style={{background:"rgba(74,222,128,0.15)",border:"1px solid rgba(74,222,128,0.3)",borderRadius:6,padding:"10px 14px",fontSize:13,color:"#4ade80",lineHeight:1.6}}>{article.resources}</div>
+        <div style={{background:"rgba(92,201,122,0.15)",border:"1px solid rgba(92,201,122,0.3)",borderRadius:6,padding:"10px 14px",fontSize:13,color:"#5CC97A",lineHeight:1.6}}>{article.resources}</div>
       </>}
     </div>
   </div>;
@@ -155,10 +155,10 @@ function Flowchart({ flowId, onBack, onArticle }) {
     return <div>
       <button onClick={onBack} style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--accent)",cursor:"pointer",border:"none",background:"none",marginBottom:16}}>← Back</button>
       <h2 style={{fontSize:18,fontWeight:700,marginBottom:16}}>{flow.title}</h2>
-      <div style={{background:"rgba(74,222,128,0.15)",border:"1px solid rgba(74,222,128,0.3)",borderRadius:8,padding:20}}>
-        <h3 style={{color:"#4ade80",fontSize:15,marginBottom:8}}>{"✓ " + node.t}</h3>
+      <div style={{background:"rgba(92,201,122,0.15)",border:"1px solid rgba(92,201,122,0.3)",borderRadius:8,padding:20}}>
+        <h3 style={{color:"#5CC97A",fontSize:15,marginBottom:8}}>{"✓ " + node.t}</h3>
         <p style={{color:"var(--text-primary)",fontWeight:500,fontSize:14,lineHeight:1.6}}>{node.a}</p>
-        {node.link && <button onClick={() => onArticle(node.link)} style={{marginTop:12,background:"none",border:"1px solid rgba(74,222,128,0.3)",color:"#4ade80",padding:"6px 14px",borderRadius:4,cursor:"pointer",fontSize:13,fontFamily:"var(--font-mono)"}}>View KB article →</button>}
+        {node.link && <button onClick={() => onArticle(node.link)} style={{marginTop:12,background:"none",border:"1px solid rgba(92,201,122,0.3)",color:"#5CC97A",padding:"6px 14px",borderRadius:4,cursor:"pointer",fontSize:13,fontFamily:"var(--font-mono)"}}>View KB article →</button>}
         <br/><button onClick={() => setPath([flow.start])} style={{marginTop:12,background:"none",border:"1px solid var(--border)",color:"var(--text-secondary)",padding:"8px 16px",borderRadius:4,cursor:"pointer",fontSize:13}}>↩ Start over</button>
       </div>
     </div>;
@@ -206,13 +206,13 @@ function SubnetCalc() {
   };
 
   const fields = result && !result.error ? [
-    ["Network address", result.network, "var(--accent)", "rgba(56,189,248,0.15)"],
+    ["Network address", result.network, "var(--accent)", "rgba(27,107,58,0.2)"],
     ["Subnet mask", result.subnetMask, "var(--text-primary)", "var(--bg-secondary)"],
     ["Wildcard mask", result.wildcard, "var(--text-secondary)", "var(--bg-secondary)"],
-    ["Broadcast address", result.broadcast, "#fbbf24", "rgba(251,191,36,0.15)"],
-    ["First usable host", result.firstHost, "#4ade80", "rgba(74,222,128,0.15)"],
-    ["Last usable host", result.lastHost, "#4ade80", "rgba(74,222,128,0.15)"],
-    ["Total usable hosts", result.totalHosts.toLocaleString(), "#a78bfa", "rgba(167,139,250,0.15)"],
+    ["Broadcast address", result.broadcast, "#E5A832", "rgba(229,168,50,0.15)"],
+    ["First usable host", result.firstHost, "#5CC97A", "rgba(92,201,122,0.15)"],
+    ["Last usable host", result.lastHost, "#5CC97A", "rgba(92,201,122,0.15)"],
+    ["Total usable hosts", result.totalHosts.toLocaleString(), "#A8B8C0", "rgba(168,184,192,0.15)"],
     ["IP class", "Class " + result.ipClass + (result.isPrivate ? " (private)" : " (public)"), "var(--text-secondary)", "var(--bg-secondary)"],
   ] : null;
 
@@ -227,10 +227,10 @@ function SubnetCalc() {
         <label style={{fontSize:12,fontFamily:"var(--font-mono)",color:"var(--text-muted)",display:"block",marginBottom:4}}>CIDR (0-32)</label>
         <input value={cidr} onChange={e => setCidr(e.target.value)} style={{width:"100%",background:"var(--bg-tertiary)",border:"1px solid var(--border)",borderRadius:6,padding:"12px 16px",fontSize:15,color:"var(--text-primary)",fontFamily:"inherit",outline:"none"}} />
       </div>
-      <button onClick={calc} style={{background:"#38bdf8",color:"#0a0e14",border:"none",borderRadius:6,padding:"12px 24px",fontSize:14,fontWeight:600,cursor:"pointer"}}>Calculate</button>
+      <button onClick={calc} style={{background:"#1B6B3A",color:"#ffffff",border:"none",borderRadius:6,padding:"12px 24px",fontSize:14,fontWeight:600,cursor:"pointer"}}>Calculate</button>
     </div>
     <div style={{fontSize:13,color:"var(--text-muted)",marginBottom:16}}>Common CIDRs: /24 = 254 hosts (most common), /16 = 65,534 hosts, /8 = 16 million hosts</div>
-    {result && result.error && <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,padding:16,textAlign:"center",color:"#f87171"}}>{result.error}</div>}
+    {result && result.error && <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,padding:16,textAlign:"center",color:"#E85555"}}>{result.error}</div>}
     {fields && <>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         {fields.map((f, i) => <div key={i} style={{background:f[3],border:"1px solid var(--border)",borderRadius:6,padding:"12px 16px"}}>
@@ -241,7 +241,7 @@ function SubnetCalc() {
       <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:8,padding:16,marginTop:16}}>
         <div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--accent)",textTransform:"uppercase",letterSpacing:1.5,marginBottom:8}}>What this means</div>
         <p style={{fontSize:14,color:"var(--text-secondary)",lineHeight:1.6}}>
-          Any device with an IP between <span style={{color:"#4ade80",fontFamily:"var(--font-mono)"}}>{result.firstHost}</span> and <span style={{color:"#4ade80",fontFamily:"var(--font-mono)"}}>{result.lastHost}</span> is in the same subnet. They can talk directly. The broadcast address <span style={{color:"#fbbf24",fontFamily:"var(--font-mono)"}}>{result.broadcast}</span> reaches all {result.totalHosts.toLocaleString()} devices at once.
+          Any device with an IP between <span style={{color:"#5CC97A",fontFamily:"var(--font-mono)"}}>{result.firstHost}</span> and <span style={{color:"#5CC97A",fontFamily:"var(--font-mono)"}}>{result.lastHost}</span> is in the same subnet. They can talk directly. The broadcast address <span style={{color:"#E5A832",fontFamily:"var(--font-mono)"}}>{result.broadcast}</span> reaches all {result.totalHosts.toLocaleString()} devices at once.
         </p>
       </div>
     </>}
@@ -268,16 +268,16 @@ function Categorizer({ onArticle }) {
   return <>
     <div style={{fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1.5,color:"var(--text-muted)",marginBottom:12}}>Paste ticket text or describe the issue</div>
     <textarea value={text} onChange={e => setText(e.target.value)} placeholder={"Paste the ticket email or describe the issue here...\n\nExample: I can not log into my account, it says restricted"} style={{width:"100%",minHeight:120,background:"var(--bg-tertiary)",border:"1px solid var(--border)",borderRadius:6,padding:14,fontSize:14,color:"var(--text-primary)",fontFamily:"inherit",resize:"vertical",outline:"none",marginBottom:12}} />
-    <button onClick={analyze} style={{background:"#38bdf8",color:"#0a0e14",border:"none",borderRadius:6,padding:"10px 24px",fontSize:14,fontWeight:600,cursor:"pointer",marginBottom:20}}>Analyze Ticket</button>
-    {results && results.length === 0 && <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,padding:16,textAlign:"center",color:"#fbbf24"}}>No match found. Try including more details.</div>}
+    <button onClick={analyze} style={{background:"#1B6B3A",color:"#ffffff",border:"none",borderRadius:6,padding:"10px 24px",fontSize:14,fontWeight:600,cursor:"pointer",marginBottom:20}}>Analyze Ticket</button>
+    {results && results.length === 0 && <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,padding:16,textAlign:"center",color:"#E5A832"}}>No match found. Try including more details.</div>}
     {results && results.length > 0 && results.map((m, i) => <div key={i} style={{background:"var(--bg-secondary)",border:"1px solid " + (i === 0 ? "var(--accent)" : "var(--border)"),borderRadius:8,padding:20,marginBottom:10}}>
-      {i === 0 && <div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"#4ade80",marginBottom:8,textTransform:"uppercase",letterSpacing:1.5}}>Best match</div>}
+      {i === 0 && <div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"#5CC97A",marginBottom:8,textTransform:"uppercase",letterSpacing:1.5}}>Best match</div>}
       <div style={{fontSize:16,fontWeight:600,marginBottom:8}}>{m.rule.cat}</div>
       <div style={{marginBottom:8}}>
         <span style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:1}}>Assign to: </span>
-        <span style={{fontSize:14,color:"#a78bfa"}}>{m.rule.to}</span>
+        <span style={{fontSize:14,color:"#A8B8C0"}}>{m.rule.to}</span>
       </div>
-      {m.rule.art && <button onClick={() => onArticle(m.rule.art)} style={{background:"none",border:"1px solid rgba(56,189,248,0.5)",color:"#38bdf8",padding:"4px 12px",borderRadius:4,cursor:"pointer",fontSize:12,fontFamily:"var(--font-mono)",marginBottom:8}}>View KB article →</button>}
+      {m.rule.art && <button onClick={() => onArticle(m.rule.art)} style={{background:"none",border:"1px solid rgba(61,166,106,0.5)",color:"#3DA66A",padding:"4px 12px",borderRadius:4,cursor:"pointer",fontSize:12,fontFamily:"var(--font-mono)",marginBottom:8}}>View KB article →</button>}
       {m.rule.tip && <div style={{marginTop:8}}>
         <div style={{fontSize:11,fontFamily:"var(--font-mono)",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Tip</div>
         <div style={{fontSize:13,color:"var(--text-secondary)",background:"var(--bg-tertiary)",padding:10,borderRadius:4}}>{m.rule.tip}</div>
@@ -325,18 +325,18 @@ function App() {
 
   const css = `@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
   * { margin:0;padding:0;box-sizing:border-box; }
-  :root { --bg-primary:#0a0e14;--bg-secondary:#111820;--bg-tertiary:#1a2230;--bg-hover:#1e2a3a;--border:#2a3545;--border-light:#354560;--text-primary:#e0e6ed;--text-secondary:#8899aa;--text-muted:#556677;--accent:#38bdf8;--font-mono:'JetBrains Mono',monospace;--font-sans:'Source Sans 3',sans-serif; }
+  :root { --bg-primary:#0B1210;--bg-secondary:#121D17;--bg-tertiary:#1A2720;--bg-hover:#1E2E24;--border:#253830;--border-light:#35504A;--text-primary:#E5EBE7;--text-secondary:#8B9E92;--text-muted:#557065;--accent:#3DA66A;--font-mono:'JetBrains Mono',monospace;--font-sans:'Source Sans 3',sans-serif; }
   body { background:var(--bg-primary);color:var(--text-primary);font-family:var(--font-sans);line-height:1.5; }
   .tabs { display:flex;gap:2px;padding:0 24px;background:var(--bg-secondary);border-bottom:1px solid var(--border);overflow-x:auto; }
   .tab { padding:12px 16px;font-size:13px;font-weight:500;color:var(--text-secondary);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:var(--font-sans); }
   .tab:hover { color:var(--text-primary);background:var(--bg-hover); }
-  .tab.active { color:var(--accent);border-bottom-color:var(--accent);background:rgba(56,189,248,0.15); }`;
+  .tab.active { color:var(--accent);border-bottom-color:var(--accent);background:rgba(61,166,106,0.15); }`;
 
   return <>
     <style>{css}</style>
     <div style={{minHeight:"100vh",display:"flex",flexDirection:"column"}}>
       <div style={{background:"var(--bg-secondary)",borderBottom:"1px solid var(--border)",padding:"16px 24px",display:"flex",alignItems:"center",gap:16,position:"sticky",top:0,zIndex:100}}>
-        <div style={{background:"#38bdf8",color:"#0a0e14",fontFamily:"var(--font-mono)",fontWeight:700,fontSize:13,padding:"6px 10px",borderRadius:4}}>SU</div>
+        <div style={{background:"#1B6B3A",color:"#ffffff",fontFamily:"var(--font-mono)",fontWeight:700,fontSize:13,padding:"6px 10px",borderRadius:4}}>SU</div>
         <div style={{fontSize:18,fontWeight:600}}>Helpdesk Companion</div>
         <div style={{fontSize:13,color:"var(--text-muted)",marginLeft:"auto",fontFamily:"var(--font-mono)"}}>Stevenson OIT</div>
       </div>
@@ -369,13 +369,13 @@ function App() {
         {tab === "bb" && <>
           <input value={bbSearch} onChange={e => setBbSearch(e.target.value)} placeholder="Enter course prefix (e.g. ACC, CHEM, PSY)..." style={{width:"100%",background:"var(--bg-tertiary)",border:"1px solid var(--border)",borderRadius:6,padding:"12px 16px",fontSize:15,color:"var(--text-primary)",fontFamily:"inherit",outline:"none",marginBottom:16}} />
           {bbResult && bbResult.tech && <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,padding:16,textAlign:"center",marginBottom:16}}>
-            <div style={{fontSize:20,fontWeight:700,color:bbResult.tech==="Sam Page"?"#38bdf8":bbResult.tech==="Thom Schlitzer"?"#4ade80":"#a78bfa"}}>→ {bbResult.tech}</div>
+            <div style={{fontSize:20,fontWeight:700,color:bbResult.tech==="Sam Page"?"#3DA66A":bbResult.tech==="Thom Schlitzer"?"#7DDBA0":"#A8B8C0"}}>→ {bbResult.tech}</div>
             <div style={{fontSize:13,fontFamily:"var(--font-mono)",color:"var(--text-muted)"}}>{bbResult.schools}</div>
           </div>}
-          {bbResult && !bbResult.tech && <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,padding:16,textAlign:"center",marginBottom:16,color:"#fbbf24"}}>No match — check columns below</div>}
+          {bbResult && !bbResult.tech && <div style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,padding:16,textAlign:"center",marginBottom:16,color:"#E5A832"}}>No match — check columns below</div>}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
             {Object.entries(BB_TECHS).map(([tech,info],i) => <div key={tech} style={{background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,overflow:"hidden"}}>
-              <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",fontWeight:600,fontSize:14,background:i===0?"rgba(56,189,248,0.15)":i===1?"rgba(74,222,128,0.15)":"rgba(167,139,250,0.15)",color:i===0?"#38bdf8":i===1?"#4ade80":"#a78bfa"}}>{tech}<br/><small style={{fontSize:11,fontFamily:"var(--font-mono)",fontWeight:400,color:"var(--text-muted)"}}>{info.schools}</small></div>
+              <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",fontWeight:600,fontSize:14,background:i===0?"rgba(27,107,58,0.2)":i===1?"rgba(92,201,122,0.15)":"rgba(168,184,192,0.15)",color:i===0?"#1B6B3A":i===1?"#5CC97A":"#A8B8C0"}}>{tech}<br/><small style={{fontSize:11,fontFamily:"var(--font-mono)",fontWeight:400,color:"var(--text-muted)"}}>{info.schools}</small></div>
               <div style={{padding:"8px 12px",maxHeight:300,overflowY:"auto"}}>{BB_ROUTING[tech].map((p,j) => <div key={j} style={{fontSize:13,color:"var(--text-secondary)",padding:"3px 0",borderBottom:"1px solid var(--border)"}}>{p}</div>)}</div>
             </div>)}
           </div>
@@ -385,7 +385,7 @@ function App() {
           <input value={printerSearch} onChange={e => setPrinterSearch(e.target.value)} placeholder="Search by ID, name, location, or building..." style={{width:"100%",background:"var(--bg-tertiary)",border:"1px solid var(--border)",borderRadius:6,padding:"12px 16px",fontSize:15,color:"var(--text-primary)",fontFamily:"inherit",outline:"none",marginBottom:16}} />
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead><tr>{["ID","Name","Location","Model"].map(h => <th key={h} style={{textAlign:"left",padding:"8px 12px",fontFamily:"var(--font-mono)",fontSize:11,fontWeight:600,textTransform:"uppercase",color:"var(--text-muted)",borderBottom:"1px solid var(--border)"}}>{h}</th>)}</tr></thead>
-            <tbody>{filteredPrinters.map(b => <>{<tr key={b.building}><td colSpan={4} style={{fontFamily:"var(--font-mono)",fontWeight:600,color:"#38bdf8",background:"rgba(56,189,248,0.15)",fontSize:12,padding:"6px 12px"}}>{b.building}</td></tr>}{b.printers.map(p => <tr key={p.id}><td style={{padding:"7px 12px",borderBottom:"1px solid var(--border)",color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontSize:12}}>{p.id}</td><td style={{padding:"7px 12px",borderBottom:"1px solid var(--border)",color:"var(--text-secondary)"}}>{p.name}</td><td style={{padding:"7px 12px",borderBottom:"1px solid var(--border)",color:"var(--text-secondary)"}}>{p.location}</td><td style={{padding:"7px 12px",borderBottom:"1px solid var(--border)",color:"var(--text-secondary)"}}>{p.model}</td></tr>)}</>)}</tbody>
+            <tbody>{filteredPrinters.map(b => <>{<tr key={b.building}><td colSpan={4} style={{fontFamily:"var(--font-mono)",fontWeight:600,color:"#1B6B3A",background:"rgba(27,107,58,0.2)",fontSize:12,padding:"6px 12px"}}>{b.building}</td></tr>}{b.printers.map(p => <tr key={p.id}><td style={{padding:"7px 12px",borderBottom:"1px solid var(--border)",color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontSize:12}}>{p.id}</td><td style={{padding:"7px 12px",borderBottom:"1px solid var(--border)",color:"var(--text-secondary)"}}>{p.name}</td><td style={{padding:"7px 12px",borderBottom:"1px solid var(--border)",color:"var(--text-secondary)"}}>{p.location}</td><td style={{padding:"7px 12px",borderBottom:"1px solid var(--border)",color:"var(--text-secondary)"}}>{p.model}</td></tr>)}</>)}</tbody>
           </table>
         </>}
 
